@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Quan-ly-sv</string>
+    <string name="mssv">MSSV</string>
+    <string name="save">Lưu</string>
+    <string name="name_student">Họ tên</string>
+    <string name="delete_mssv">Nhập MSSV cần xóa</string>
+    <string name="delete">Xóa</string>
+    <string name="add_sv">Thêm sinh viên</string>
+    <string name="del_sv">Xóa sinh viên</string>
+    <string name="student_name_format">Họ tên: %1$s</string>
+    <string name="student_id_format">MSSV: %1$s</string>
+
+</resources>
