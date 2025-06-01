@@ -1,47 +1,63 @@
 package com.example.quan_ly_sv
 
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
+import android.content.Context
+import android.view.*
+import android.widget.*
+import androidx.appcompat.widget.PopupMenu
 
-class StudentAdapter(private val students: MutableList<Student>) :
-    RecyclerView.Adapter<StudentAdapter.StudentViewHolder>() {
+class StudentAdapter(
+    private val context: Context,
+    private val list: MutableList<Student>,
+    private val listener: (String, Student, Int) -> Unit
+) : BaseAdapter() {
 
-    class StudentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvName: TextView = itemView.findViewById(R.id.tvName)
-        val tvId: TextView = itemView.findViewById(R.id.tvId)
-    }
+    override fun getCount() = list.size
+    override fun getItem(position: Int) = list[position]
+    override fun getItemId(position: Int) = position.toLong()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StudentViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_student, parent, false)
-        return StudentViewHolder(view)
-    }
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+        val view: View
+        val holder: ViewHolder
 
-    override fun onBindViewHolder(holder: StudentViewHolder, position: Int) {
-        val student = students[position]
-        val context = holder.itemView.context
-        holder.tvName.text = context.getString(R.string.student_name_format, student.name)
-        holder.tvId.text = context.getString(R.string.student_id_format, student.id)
-
-    }
-
-    override fun getItemCount() = students.size
-
-    fun addStudent(student: Student) {
-        students.add(0, student)
-        notifyItemInserted(0)
-    }
-
-    fun removeStudentById(id: String) {
-        val index = students.indexOfFirst { it.id == id }
-        if (index != -1) {
-            students.removeAt(index)
-            notifyItemRemoved(index)
+        if (convertView == null) {
+            // Inflate layout mới khi convertView null
+            view = LayoutInflater.from(context).inflate(R.layout.item_student, parent, false)
+            holder = ViewHolder()
+            holder.tvName = view.findViewById(R.id.tvName)
+            holder.tvMssv = view.findViewById(R.id.tvMssv)
+            holder.imgMenu = view.findViewById(R.id.imgMenu)
+            view.tag = holder // lưu holder vào tag của view
+        } else {
+            // Tái sử dụng convertView
+            view = convertView
+            holder = view.tag as ViewHolder
         }
+
+        val student = list[position]
+        holder.tvName.text = student.name
+        holder.tvMssv.text = student.mssv
+
+        holder.imgMenu.setOnClickListener {
+            val popup = PopupMenu(context, holder.imgMenu)
+            popup.menuInflater.inflate(R.menu.student_popup_menu, popup.menu)
+            popup.setOnMenuItemClickListener {
+                when (it.itemId) {
+                    R.id.menu_update -> listener("update", student, position)
+                    R.id.menu_delete -> listener("delete", student, position)
+                    R.id.menu_call -> listener("call", student, position)
+                    R.id.menu_email -> listener("email", student, position)
+                }
+                true
+            }
+            popup.show()
+        }
+
+        return view
+    }
+
+    private class ViewHolder {
+        lateinit var tvName: TextView
+        lateinit var tvMssv: TextView
+        lateinit var imgMenu: ImageView
     }
 }
-
-

@@ -29,6 +29,7 @@
         <!-- DeleteStudentActivity: Màn hình xóa sinh viên -->
         <activity android:name=".DeleteStudentActivity"
             android:label="Xóa Sinh Viên" />
+        <activity android:name=".UpdateStudentActivity" />
     </application>
 
 </manifest>

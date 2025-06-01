@@ -1,50 +1,48 @@
 package com.example.quan_ly_sv
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.widget.Button
-import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var studentAdapter: StudentAdapter
-    private val studentList = mutableListOf<Student>()
-    private val addStudentLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val data = result.data
-                val name = data?.getStringExtra("name")
-                val id = data?.getStringExtra("id")
-                // Thêm sinh viên vào danh sách
-                if (!name.isNullOrBlank() && !id.isNullOrBlank()) {
-                    val student = Student(name, id)
-                    studentList.add(0, student) // Thêm vào đầu danh sách
-                    studentAdapter.notifyItemInserted(0)
-                }
-            }
-        }
+    private lateinit var db: StudentDatabaseHelper
+    private lateinit var students: MutableList<Student>
+    private lateinit var adapter: StudentAdapter
 
-    private val deleteStudentLauncher = registerForActivityResult(
+    // Launcher cho cập nhật sinh viên
+    private val updateStudentLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             val data = result.data
-            val idToDelete = data?.getStringExtra("id")
-            if (!idToDelete.isNullOrBlank()) {
-                val index = studentList.indexOfFirst { it.id == idToDelete }
-                if (index != -1) {
-                    studentList.removeAt(index)
-                    studentAdapter.notifyItemRemoved(index)
-                    Toast.makeText(this, "Đã xóa sinh viên có MSSV $idToDelete", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Không tìm thấy sinh viên với MSSV $idToDelete", Toast.LENGTH_SHORT).show()
-                }
+            val student = data?.getParcelableExtra<Student>("student")
+            val position = data?.getIntExtra("position", -1) ?: -1
+            if (student != null && position != -1) {
+                db.updateStudent(student)
+                students.clear()
+                students.addAll(db.getAllStudents())
+                adapter.notifyDataSetChanged()
+            }
+        }
+    }
+
+
+    // Launcher cho thêm sinh viên mới
+    private val addStudentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            val student = data?.getParcelableExtra<Student>("student")
+            if (student != null) {
+                db.insertStudent(student)
+                students.clear()
+                students.addAll(db.getAllStudents())
+                adapter.notifyDataSetChanged()
             }
         }
     }
@@ -53,36 +51,42 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        studentAdapter = StudentAdapter(studentList)
+        db = StudentDatabaseHelper(this)
+        students = db.getAllStudents()
 
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = studentAdapter
+        val lv = findViewById<ListView>(R.id.lvStudents)
+        val btnAdd = findViewById<Button>(R.id.btnAdd)
 
-        findViewById<Button>(R.id.btnAdd).setOnClickListener {
-            val intent = Intent(this, AddStudentActivity::class.java)
-            addStudentLauncher.launch(intent)        }
-
-        findViewById<Button>(R.id.btnDelete).setOnClickListener {
-            val intent = Intent(this, DeleteStudentActivity::class.java)
-            deleteStudentLauncher.launch(intent)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == RESULT_OK && data != null) {
-            when (requestCode) {
-                1 -> {
-                    val name = data.getStringExtra("name") ?: ""
-                    val id = data.getStringExtra("id") ?: ""
-                    studentAdapter.addStudent(Student(name, id))
+        adapter = StudentAdapter(this, students) { action, student, position ->
+            when (action) {
+                "update" -> {
+                    val intent = Intent(this, UpdateStudentActivity::class.java)
+                    intent.putExtra("student", student)
+                    intent.putExtra("position", position)
+                    updateStudentLauncher.launch(intent)
                 }
-                2 -> {
-                    val id = data.getStringExtra("id") ?: ""
-                    studentAdapter.removeStudentById(id)
+                "delete" -> {
+                    AlertDialog.Builder(this)
+                        .setTitle("Xác nhận")
+                        .setMessage("Xóa sinh viên này?")
+                        .setPositiveButton("Có") { _, _ ->
+                            db.deleteStudent(student.id)
+                            students.removeAt(position)
+                            adapter.notifyDataSetChanged()
+                        }
+                        .setNegativeButton("Không", null)
+                        .show()
                 }
+                "call" -> startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${student.phone}")))
+                "email" -> startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${student.email}")))
             }
+        }
+
+        lv.adapter = adapter
+
+        btnAdd.setOnClickListener {
+            val intent = Intent(this, AddStudentActivity::class.java)
+            addStudentLauncher.launch(intent)
         }
     }
 }
